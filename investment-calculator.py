@@ -38,3 +38,29 @@ def make_predictions(model_eur_to_usd, model_inflation_rate, future_dates_num):
     predicted_inflation_rate = model_inflation_rate.predict(future_dates_num)
     return predicted_eur_to_usd, predicted_inflation_rate
 
+# Function to calculate financial prospects
+def calculate_financial_prospects(initial_investment, additional_investment, frequency, years, rate_of_return, compound_frequency, predicted_eur_to_usd, predicted_inflation_rate):
+    periods = {
+        'daily': 365,
+        'monthly': 12,
+        'annually': 1
+    }[compound_frequency]
+
+    future_value = initial_investment
+    investment_values = []
+
+    for i in range(len(predicted_eur_to_usd)):
+        if frequency == 'monthly':
+            if i % 1 == 0:
+                future_value += additional_investment
+        elif frequency == 'annually':
+            if i % 12 == 0:
+                future_value += additional_investment
+
+        future_value *= (1 + rate_of_return / periods)
+        future_value *= (1 + predicted_inflation_rate[i])
+        future_value_usd = future_value * predicted_eur_to_usd[i]
+        investment_values.append(future_value_usd)
+
+    return investment_values
+
