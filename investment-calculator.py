@@ -30,3 +30,11 @@ def train_models(X, y_eur_to_usd, y_inflation_rate):
     model_inflation_rate = LinearRegression()
     model_inflation_rate.fit(X, y_inflation_rate)
     return model_eur_to_usd, model_inflation_rate
+
+
+# Function to make predictions
+def make_predictions(model_eur_to_usd, model_inflation_rate, future_dates_num):
+    predicted_eur_to_usd = model_eur_to_usd.predict(future_dates_num)
+    predicted_inflation_rate = model_inflation_rate.predict(future_dates_num)
+    return predicted_eur_to_usd, predicted_inflation_rate
+
