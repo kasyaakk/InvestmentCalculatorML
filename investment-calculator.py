@@ -1,11 +1,12 @@
 import pandas as pd
 import numpy as np
 from sklearn.linear_model import LinearRegression
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.metrics import mean_squared_error
 import matplotlib.pyplot as plt
 from datetime import datetime, timedelta
 
-
-# Function to load data 
+# Function to load data
 def load_data():
     current_date = datetime.now()
     data = pd.DataFrame({
@@ -25,18 +26,31 @@ def prepare_data(data):
 
 # Function to train models
 def train_models(X, y_eur_to_usd, y_inflation_rate):
-    model_eur_to_usd = LinearRegression()
-    model_eur_to_usd.fit(X, y_eur_to_usd)
-    model_inflation_rate = LinearRegression()
-    model_inflation_rate.fit(X, y_inflation_rate)
-    return model_eur_to_usd, model_inflation_rate
+    lr_model_eur_to_usd = LinearRegression()
+    lr_model_eur_to_usd.fit(X, y_eur_to_usd)
 
+    dt_model_eur_to_usd = DecisionTreeRegressor()
+    dt_model_eur_to_usd.fit(X, y_eur_to_usd)
+
+    lr_model_inflation_rate = LinearRegression()
+    lr_model_inflation_rate.fit(X, y_inflation_rate)
+
+    dt_model_inflation_rate = DecisionTreeRegressor()
+    dt_model_inflation_rate.fit(X, y_inflation_rate)
+
+    return (lr_model_eur_to_usd, dt_model_eur_to_usd), (lr_model_inflation_rate, dt_model_inflation_rate)
 
 # Function to make predictions
-def make_predictions(model_eur_to_usd, model_inflation_rate, future_dates_num):
-    predicted_eur_to_usd = model_eur_to_usd.predict(future_dates_num)
-    predicted_inflation_rate = model_inflation_rate.predict(future_dates_num)
-    return predicted_eur_to_usd, predicted_inflation_rate
+def make_predictions(models, future_dates_num):
+    (lr_model_eur_to_usd, dt_model_eur_to_usd), (lr_model_inflation_rate, dt_model_inflation_rate) = models
+
+    lr_predicted_eur_to_usd = lr_model_eur_to_usd.predict(future_dates_num)
+    dt_predicted_eur_to_usd = dt_model_eur_to_usd.predict(future_dates_num)
+    
+    lr_predicted_inflation_rate = lr_model_inflation_rate.predict(future_dates_num)
+    dt_predicted_inflation_rate = dt_model_inflation_rate.predict(future_dates_num)
+
+    return (lr_predicted_eur_to_usd, dt_predicted_eur_to_usd), (lr_predicted_inflation_rate, dt_predicted_inflation_rate)
 
 # Function to calculate financial prospects
 def calculate_financial_prospects(initial_investment, additional_investment, frequency, years, rate_of_return, compound_frequency, predicted_eur_to_usd, predicted_inflation_rate):
@@ -64,31 +78,40 @@ def calculate_financial_prospects(initial_investment, additional_investment, fre
 
     return investment_values
 
-
 # Function to visualize data
-def visualize(data, future_dates, predicted_eur_to_usd, predicted_inflation_rate, financial_prospects):
+def visualize(data, future_dates, lr_predicted_eur_to_usd, dt_predicted_eur_to_usd, lr_predicted_inflation_rate, dt_predicted_inflation_rate, lr_financial_prospects, dt_financial_prospects):
     plt.figure(figsize=(14, 10))
 
-    plt.subplot(3, 1, 1)
+    plt.subplot(4, 1, 1)
     plt.plot(data['date'], data['eur_to_usd'], label='Historical EUR/USD Exchange Rate')
-    plt.plot(future_dates, predicted_eur_to_usd, label='Predicted EUR/USD Exchange Rate')
+    plt.plot(future_dates, lr_predicted_eur_to_usd, label='Predicted EUR/USD Exchange Rate (Linear Regression)')
+    plt.plot(future_dates, dt_predicted_eur_to_usd, label='Predicted EUR/USD Exchange Rate (Decision Tree)', linestyle='dashed')
     plt.xlabel('Date')
     plt.ylabel('EUR/USD')
     plt.legend()
     plt.grid(True)
 
-    plt.subplot(3, 1, 2)
+    plt.subplot(4, 1, 2)
     plt.plot(data['date'], data['inflation_rate'], label='Historical Inflation Rate')
-    plt.plot(future_dates, predicted_inflation_rate, label='Predicted Inflation Rate')
+    plt.plot(future_dates, lr_predicted_inflation_rate, label='Predicted Inflation Rate (Linear Regression)')
+    plt.plot(future_dates, dt_predicted_inflation_rate, label='Predicted Inflation Rate (Decision Tree)', linestyle='dashed')
     plt.xlabel('Date')
     plt.ylabel('Inflation Rate')
     plt.legend()
     plt.grid(True)
 
-    plt.subplot(3, 1, 3)
-    plt.plot(future_dates, financial_prospects, label='Predicted Financial Prospects (in USD)')
+    plt.subplot(4, 1, 3)
+    plt.plot(future_dates, lr_financial_prospects, label='Predicted Financial Prospects (in USD, Linear Regression)')
+    plt.plot(future_dates, dt_financial_prospects, label='Predicted Financial Prospects (in USD, Decision Tree)', linestyle='dashed')
     plt.xlabel('Date')
     plt.ylabel('Amount (in USD)')
+    plt.legend()
+    plt.grid(True)
+
+    plt.subplot(4, 1, 4)
+    plt.plot(future_dates, np.array(lr_financial_prospects) - np.array(dt_financial_prospects), label='Financial Difference (Linear Regression vs Decision Tree)')
+    plt.xlabel('Date')
+    plt.ylabel('Difference in Amount (in USD)')
     plt.legend()
     plt.grid(True)
 
@@ -108,16 +131,17 @@ def main():
 
     data = load_data()
     X, y_eur_to_usd, y_inflation_rate = prepare_data(data)
-    model_eur_to_usd, model_inflation_rate = train_models(X, y_eur_to_usd, y_inflation_rate)
+    models = train_models(X, y_eur_to_usd, y_inflation_rate)
 
     future_dates = pd.date_range(start=start_date, periods=years*12, freq='M')
     future_dates_num = future_dates.to_series().apply(lambda x: x.toordinal()).values.reshape(-1, 1)
 
-    predicted_eur_to_usd, predicted_inflation_rate = make_predictions(model_eur_to_usd, model_inflation_rate, future_dates_num)
+    (lr_predicted_eur_to_usd, dt_predicted_eur_to_usd), (lr_predicted_inflation_rate, dt_predicted_inflation_rate) = make_predictions(models, future_dates_num)
 
-    financial_prospects = calculate_financial_prospects(initial_investment, additional_investment, frequency, years, rate_of_return, compound_frequency, predicted_eur_to_usd, predicted_inflation_rate)
+    lr_financial_prospects = calculate_financial_prospects(initial_investment, additional_investment, frequency, years, rate_of_return, compound_frequency, lr_predicted_eur_to_usd, lr_predicted_inflation_rate)
+    dt_financial_prospects = calculate_financial_prospects(initial_investment, additional_investment, frequency, years, rate_of_return, compound_frequency, dt_predicted_eur_to_usd, dt_predicted_inflation_rate)
 
-    visualize(data, future_dates, predicted_eur_to_usd, predicted_inflation_rate, financial_prospects)
+    visualize(data, future_dates, lr_predicted_eur_to_usd, dt_predicted_eur_to_usd, lr_predicted_inflation_rate, dt_predicted_inflation_rate, lr_financial_prospects, dt_financial_prospects)
 
 # Running the main function
 main()
